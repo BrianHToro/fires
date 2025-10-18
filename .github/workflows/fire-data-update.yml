@@ -38,19 +38,30 @@ jobs:
           echo "Fire data generated successfully"
           ls -la fire_data/
           echo "Number of fire detections: $(wc -l < fire_data/fire_snapshot.csv)"
+          echo "File size: $(du -h fire_data/fire_snapshot.csv)"
         else
           echo "Fire data generation failed"
           exit 1
         fi
         
-    - name: Commit and push changes
+    - name: Check for changes and commit
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git add fire_data/fire_snapshot.csv
+        
+        # Check if there are any changes
         if git diff --staged --quiet; then
-          echo "No changes to commit"
+          echo "No changes detected in fire data - data may be identical to previous run"
+          echo "This is normal if fires haven't changed significantly"
+          
+          # Create a status file to show the workflow ran
+          echo "Last updated: $(date)" > fire_data/last_update.txt
+          git add fire_data/last_update.txt
+          git commit -m "Fire data check completed - no new changes ($(date))" || echo "No changes to commit"
         else
-          git commit -m "Update fire data snapshot - $(date)"
-          git push origin main
+          echo "Changes detected - committing updated fire data"
+          git commit -m "Update fire data snapshot - $(date) ($(wc -l < fire_data/fire_snapshot.csv) detections)"
         fi
+        
+        git push origin main
