@@ -1,0 +1,56 @@
+name: Fire Data Update
+
+on:
+  schedule:
+    # Run every 24 hours at 12:00 UTC
+    - cron: '0 12 * * *'
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  update-fire-data:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install earthkit requests pandas geopandas
+        
+    - name: Run fire data script
+      run: |
+        python fires.py
+        
+    - name: Check if fire data was generated
+      run: |
+        if [ -f "fire_data/fire_snapshot.csv" ]; then
+          echo "Fire data generated successfully"
+          ls -la fire_data/
+          echo "Number of fire detections: $(wc -l < fire_data/fire_snapshot.csv)"
+        else
+          echo "Fire data generation failed"
+          exit 1
+        fi
+        
+    - name: Commit and push changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add fire_data/fire_snapshot.csv
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "Update fire data snapshot - $(date)"
+          git push origin main
+        fi
