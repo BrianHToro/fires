@@ -34,13 +34,11 @@ jobs:
         
     - name: Check if fire data was generated
       run: |
-        if [ -f "fire_data/fire_snapshot_1.csv" ]; then
+        if [ -f "fire_data/fire_snapshot.csv" ]; then
           echo "Fire data generated successfully"
           ls -la fire_data/
-          echo "Number of CSV files: $(ls fire_data/fire_snapshot_*.csv | wc -l)"
-          echo "Total fire detections: $(cat fire_data/fire_snapshot_*.csv | wc -l)"
-          echo "File sizes:"
-          du -h fire_data/fire_snapshot_*.csv
+          echo "Number of fire detections: $(wc -l < fire_data/fire_snapshot.csv)"
+          echo "File size: $(du -h fire_data/fire_snapshot.csv)"
         else
           echo "Fire data generation failed"
           exit 1
@@ -50,7 +48,7 @@ jobs:
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git add fire_data/fire_snapshot_*.csv
+        git add fire_data/fire_snapshot.csv
         
         # Check if there are any changes
         if git diff --staged --quiet; then
@@ -63,9 +61,8 @@ jobs:
           git commit -m "Fire data check completed - no new changes ($(date))" || echo "No changes to commit"
         else
           echo "Changes detected - committing updated fire data"
-          total_detections=$(cat fire_data/fire_snapshot_*.csv | wc -l)
-          num_files=$(ls fire_data/fire_snapshot_*.csv | wc -l)
-          git commit -m "Update fire data snapshot - $(date) ($total_detections detections in $num_files files)"
+          total_detections=$(wc -l < fire_data/fire_snapshot.csv)
+          git commit -m "Update fire data snapshot - $(date) ($total_detections detections, sorted by size)"
         fi
         
         git push origin main
