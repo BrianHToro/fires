@@ -125,7 +125,7 @@ def process_fire_data_with_earthkit(df, source_name):
 
 def save_fire_data(df, source_name, output_dir="fire_data"):
     """
-    Save fire data as CSV only, overwriting previous file.
+    Save fire data as multiple CSV files with 1000 lines each for GitHub preview.
     
     Args:
         df (pandas.DataFrame): Fire data DataFrame
@@ -135,12 +135,32 @@ def save_fire_data(df, source_name, output_dir="fire_data"):
     # Create output directory
     os.makedirs(output_dir, exist_ok=True)
     
-    # Save as CSV with fixed filename (overwrites previous)
-    csv_file = os.path.join(output_dir, "fire_snapshot.csv")
-    df.to_csv(csv_file, index=False)
-    print(f"Saved CSV: {csv_file}")
+    # Clear previous files
+    import glob
+    for old_file in glob.glob(os.path.join(output_dir, "fire_snapshot_*.csv")):
+        os.remove(old_file)
     
-    return {"csv": csv_file}
+    # Split data into chunks of 1000 rows each, max 10 files
+    chunk_size = 1000
+    total_rows = len(df)
+    num_chunks = min((total_rows + chunk_size - 1) // chunk_size, 10)  # Max 10 files
+    
+    saved_files = []
+    
+    for i in range(num_chunks):
+        start_idx = i * chunk_size
+        end_idx = min((i + 1) * chunk_size, total_rows)
+        
+        chunk_df = df.iloc[start_idx:end_idx]
+        csv_file = os.path.join(output_dir, f"fire_snapshot_{i+1}.csv")
+        chunk_df.to_csv(csv_file, index=False)
+        
+        print(f"Saved CSV chunk {i+1}/{num_chunks}: {csv_file} ({len(chunk_df)} rows)")
+        saved_files.append(csv_file)
+    
+    print(f"Split {total_rows} total rows into {num_chunks} files of max 1000 rows each")
+    
+    return {"csv_files": saved_files, "total_chunks": num_chunks}
 
 def analyze_fire_data(df):
     """
@@ -202,7 +222,9 @@ def main():
         print(f"Successfully downloaded and processed {len(processed_df)} fire detections")
         print(f"Data source: {source_name}")
         print(f"Earthkit data object: {earthkit_data}")
-        print(f"File saved: {saved_files['csv']}")
+        print(f"Files saved: {saved_files['total_chunks']} CSV chunks")
+        for i, file_path in enumerate(saved_files['csv_files'], 1):
+            print(f"  fire_snapshot_{i}.csv")
         
         return processed_df, earthkit_data, saved_files
         
